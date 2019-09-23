@@ -491,6 +491,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                              withRect:CGRectNull
                                      withCreationDate:nil
                                  withModificationDate:nil
+                                         withDuration:@(CMTimeGetSeconds(compressedAsset.duration) * 1000)
                         ]);
         } else {
             completion(nil);
@@ -517,7 +518,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
      }];
 }
 
-- (NSDictionary*) createAttachmentResponse:(NSString*)filePath withExif:(NSDictionary*) exif withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withWidth:(NSNumber*)width withHeight:(NSNumber*)height withMime:(NSString*)mime withSize:(NSNumber*)size withData:(NSString*)data withRect:(CGRect)cropRect withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate {
+- (NSDictionary*) createAttachmentResponse:(NSString*)filePath withExif:(NSDictionary*) exif withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withWidth:(NSNumber*)width withHeight:(NSNumber*)height withMime:(NSString*)mime withSize:(NSNumber*)size withData:(NSString*)data withRect:(CGRect)cropRect withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate withDuration:(NSNumber*)duration {
     return @{
              @"path": (filePath && ![filePath isEqualToString:(@"")]) ? filePath : [NSNull null],
              @"sourceURL": (sourceURL) ? sourceURL : [NSNull null],
@@ -532,6 +533,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
              @"cropRect": CGRectIsNull(cropRect) ? [NSNull null] : [ImageCropPicker cgRectToDictionary:cropRect],
              @"creationDate": (creationDate) ? [NSString stringWithFormat:@"%.0f", [creationDate timeIntervalSince1970]] : [NSNull null],
              @"modificationDate": (modificationDate) ? [NSString stringWithFormat:@"%.0f", [modificationDate timeIntervalSince1970]] : [NSNull null],
+             @"duration": duration ? duration : nil,
              };
 }
 
@@ -672,6 +674,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                                                              withRect:CGRectNull
                                                                      withCreationDate:phAsset.creationDate
                                                                  withModificationDate:phAsset.modificationDate
+                                                                         withDuration:nil
                                                         ]];
                              }
                              processed++;
@@ -797,6 +800,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                                withRect:CGRectNull
                                        withCreationDate:creationDate
                                    withModificationDate:modificationDate
+                                           withDuration:nil
                           ]);
         }]];
     }
@@ -925,6 +929,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                            withRect:cropRect
                                    withCreationDate:self.croppingFile[@"creationDate"]
                                withModificationDate:self.croppingFile[@"modificationDate"]
+                                       withDuration:nil
                       ]);
     }]];
 }
