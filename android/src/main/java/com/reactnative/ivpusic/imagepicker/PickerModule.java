@@ -486,16 +486,42 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         resultCollector.notifySuccess(getImage(activity, path));
     }
 
-    private Bitmap validateVideo(String path) throws Exception {
+    final class VideoMetaData {
+        private final Bitmap bmp;
+        private final String duration;
+
+        public VideoMetaData(Bitmap bmp, String duration) {
+            this.bmp = bmp;
+            this.duration = duration;
+        }
+
+        public int getWidth() {
+            return bmp.getWidth();
+        }
+
+        public int getHeight() {
+            return bmp.getHeight();
+        }
+
+        public String getDuration() {
+            return duration;
+        }
+    }
+
+    private VideoMetaData validateVideo(String path) throws Exception {
         MediaMetadataRetriever retriever = new MediaMetadataRetriever();
         retriever.setDataSource(path);
         Bitmap bmp = retriever.getFrameAtTime();
-
         if (bmp == null) {
             throw new Exception("Cannot retrieve video data");
         }
 
-        return bmp;
+        String duration =  retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+        if (duration == null) {
+            throw new Exception("Cannot retrieve video duration");
+        }
+
+        return new VideoMetaData(bmp, duration);
     }
 
     private void getVideo(final Activity activity, final String path, final String mime) throws Exception {
@@ -511,16 +537,17 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
                         String videoPath = (String) args[0];
 
                         try {
-                            Bitmap bmp = validateVideo(videoPath);
+                            VideoMetaData videoMetaData = validateVideo(videoPath);
                             long modificationDate = new File(videoPath).lastModified();
 
                             WritableMap video = new WritableNativeMap();
-                            video.putInt("width", bmp.getWidth());
-                            video.putInt("height", bmp.getHeight());
+                            video.putInt("width", videoMetaData.getWidth());
+                            video.putInt("height", videoMetaData.getHeight());
                             video.putString("mime", mime);
                             video.putInt("size", (int) new File(videoPath).length());
                             video.putString("path", "file://" + videoPath);
                             video.putString("modificationDate", String.valueOf(modificationDate));
+                            video.putString("duration", videoMetaData.getDuration());
 
                             resultCollector.notifySuccess(video);
                         } catch (Exception e) {
