@@ -18,7 +18,7 @@
                                                                                  @"1920x1080": AVAssetExportPreset1920x1080,
                                                                                  @"LowQuality": AVAssetExportPresetLowQuality,
                                                                                  @"MediumQuality": AVAssetExportPresetMediumQuality,
-                                                                                 @"HighestQuality": AVAssetExportPresetHighestQuality,
+                                                                                 @"HighQuality": AVAssetExportPresetHighestQuality,
                                                                                  @"Passthrough": AVAssetExportPresetPassthrough,
                                                                                  }];
     
