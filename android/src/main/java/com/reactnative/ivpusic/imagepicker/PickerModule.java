@@ -298,16 +298,11 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         });
     }
 
-    private double getVideoCompressQuality(String qualityPreset) {
-        switch (qualityPreset) {
-            case "LowQuality":
-                return 0;
-            case "MediumQuality":
-                return 0.5;
-            case "HighQuality":
-                return 1;
-            default:
-                return 0;
+    private int getVideoCompressQuality(String qualityPreset) {
+        if (qualityPreset.equals("LowQuality")) {
+            return 0;
+        } else {
+            return 1;
         }
     }
 
@@ -341,8 +336,9 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
                 if (videoDurationLimit > 0) {
                     cameraIntent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, videoDurationLimit);
                 }
-                private double test = getVideoCompressQuality(compressVideoPreset);
-                cameraIntent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, getVideoCompressQuality(compressVideoPreset));
+                if (compressVideoPreset != null) {
+                    cameraIntent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, getVideoCompressQuality(compressVideoPreset));
+                }
             }
 
             if (this.useFrontCamera) {
