@@ -80,6 +80,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
     private boolean disableCropperColorSetters = false;
     private boolean useFrontCamera = false;
     private int videoDurationLimit = 0;
+    private String compressVideoPreset = null;
     private ReadableMap options;
 
     //Grey 800
@@ -139,6 +140,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         disableCropperColorSetters = options.hasKey("disableCropperColorSetters") && options.getBoolean("disableCropperColorSetters");
         useFrontCamera = options.hasKey("useFrontCamera") && options.getBoolean("useFrontCamera");
         videoDurationLimit = options.hasKey("durationLimit") ? options.getInt("durationLimit") : 0;
+        compressVideoPreset = options.hasKey("compressVideoPreset") ? options.getString("compressVideoPreset") : null;
         this.options = options;
     }
 
@@ -296,6 +298,19 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         });
     }
 
+    private double getVideoCompressQuality(String qualityPreset) {
+        switch (qualityPreset) {
+            case "LowQuality":
+                return 0;
+            case "MediumQuality":
+                return 0.5;
+            case "HighQuality":
+                return 1;
+            default:
+                return 0;
+        }
+    }
+
     private void initiateCamera(Activity activity) {
 
         try {
@@ -322,8 +337,12 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
 
             cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, mCameraCaptureURI);
 
-            if (mediaType.equals("video") && videoDurationLimit > 0) {
-                cameraIntent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, videoDurationLimit);
+            if (mediaType.equals("video")) {
+                if (videoDurationLimit > 0) {
+                    cameraIntent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, videoDurationLimit);
+                }
+                private double test = getVideoCompressQuality(compressVideoPreset);
+                cameraIntent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, getVideoCompressQuality(compressVideoPreset));
             }
 
             if (this.useFrontCamera) {
