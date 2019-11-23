@@ -1,15 +1,19 @@
 package com.reactnative.ivpusic.imagepicker;
 
-import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.media.ExifInterface;
+import android.net.Uri;
 import android.os.Environment;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReadableMap;
+import com.reactnative.ivpusic.imagepicker.VideoCompressionTask.VideoCompressionListener;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -126,9 +130,63 @@ class Compression {
         return resize(originalImagePath, maxWidth, maxHeight, targetQuality);
     }
 
-    synchronized void compressVideo(final Activity activity, final ReadableMap options, final String originalVideo, final String compressedVideo, final Promise promise) {
+    synchronized void compressVideo(final ReactContext reactContext, final ReadableMap options, final String originalVideo, final String compressedVideoPath, final Promise promise) {
         // todo: video compression
         // failed attempt 1: ffmpeg => slow and licensing issues
-        promise.resolve(originalVideo);
+
+        final String inputUri = Uri.parse(originalVideo).getPath();
+//        final File outputDir = reactContext.getCacheDir();
+
+        final String outputUri = compressedVideoPath;
+
+        final String quality = options.hasKey("compressVideoPreset") ? options.getString("compressVideoPreset") : "LowQuality";
+        final long startTime = options.hasKey("startTime") ? (long) options.getDouble("startTime") : -1;
+        final long endTime = options.hasKey("endTime") ? (long) options.getDouble("endTime") : -1;
+//        cancelExistingTaskIfExists();
+
+        try {
+            VideoCompressionTask videoCompressTask = new VideoCompressionTask(
+                    inputUri,
+                    outputUri,
+                    quality,
+                    startTime,
+                    endTime,
+                    createListener(promise, outputUri, reactContext)
+            );
+            videoCompressTask.execute();
+        } catch (Throwable e) {
+//            Log.e(TAG, e.getMessage(), e);
+        }
+
+//        promise.resolve(originalVideo);
+    }
+
+    @NonNull
+    private VideoCompressionListener createListener(final Promise pm, final String outputUri, final ReactContext reactContext) {
+        return new VideoCompressionListener() {
+            @Override
+            public void onStart() {
+                //Start Compress
+                Log.d("INFO", "Compression started");
+            }
+
+            @Override
+            public void onSuccess() {
+                //Finish successfully
+                pm.resolve(outputUri);
+            }
+
+            @Override
+            public void onFail() {
+                //Failed
+                pm.reject("ERROR", "Failed to compress video");
+            }
+
+            @Override
+            public void onProgress(float percent) {
+                Log.d("INFO", "Compression started" + percent / 100);
+//                sendProgress(reactContext, percent / 100);
+            }
+        };
     }
 }

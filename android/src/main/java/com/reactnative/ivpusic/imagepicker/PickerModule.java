@@ -546,7 +546,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         new Thread(new Runnable() {
             @Override
             public void run() {
-                compression.compressVideo(activity, options, path, compressedVideoPath, new PromiseImpl(new Callback() {
+                compression.compressVideo(reactContext, options, path, compressedVideoPath, new PromiseImpl(new Callback() {
                     @Override
                     public void invoke(Object... args) {
                         String videoPath = (String) args[0];
