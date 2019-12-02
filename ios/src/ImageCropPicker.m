@@ -74,6 +74,7 @@ RCT_EXPORT_MODULE();
                                 @"multiple": @NO,
                                 @"cropping": @NO,
                                 @"cropperCircleOverlay": @NO,
+                                @"convertGrayscale": @NO,
                                 @"writeTempFile": @YES,
                                 @"includeBase64": @NO,
                                 @"includeExif": @NO,
@@ -975,13 +976,47 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
              };
 }
 
+- (UIImage *)convertImageToGrayScale:(UIImage *)image
+{
+    // Create image rectangle with current image width/height
+    CGRect imageRect = CGRectMake(0, 0, image.size.width, image.size.height);
+    
+    // Grayscale color space
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceGray();
+    
+    // Create bitmap content with current image size and grayscale colorspace
+    CGContextRef context = CGBitmapContextCreate(nil, image.size.width, image.size.height, 8, 0, colorSpace, kCGImageAlphaNone);
+    
+    // Draw image into current context, with specified rectangle
+    // using previously defined context (with grayscale colorspace)
+    CGContextDrawImage(context, imageRect, [image CGImage]);
+    
+    // Create bitmap image info from pixel data in current context
+    CGImageRef imageRef = CGBitmapContextCreateImage(context);
+    
+    // Create a new UIImage object
+    UIImage *newImage = [UIImage imageWithCGImage:imageRef];
+    
+    // Release colorspace, context and bitmap information
+    CGColorSpaceRelease(colorSpace);
+    CGContextRelease(context);
+    CFRelease(imageRef);
+    
+    // Return the new grayscale image
+    return newImage;
+}
+
 #pragma mark - TOCCropViewController Implementation
 - (void)cropImage:(UIImage *)image {
+    UIImage *newImage = image;
+    if ([[[self options] objectForKey:@"convertGrayscale"] boolValue]) {
+        newImage = [self convertImageToGrayScale:image];
+    }
     TOCropViewController *cropVC;
     if ([[[self options] objectForKey:@"cropperCircleOverlay"] boolValue]) {
-        cropVC = [[TOCropViewController alloc] initWithCroppingStyle:TOCropViewCroppingStyleCircular image:image];
+        cropVC = [[TOCropViewController alloc] initWithCroppingStyle:TOCropViewCroppingStyleCircular image:newImage];
     } else {
-        cropVC = [[TOCropViewController alloc] initWithImage:image];
+        cropVC = [[TOCropViewController alloc] initWithImage:newImage];
     }
 
     cropVC.title = [[self options] objectForKey:@"cropperToolbarTitle"];
@@ -992,6 +1027,15 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
 
     cropVC.doneButtonTitle = cropperChooseText;
     cropVC.cancelButtonTitle = cropperCancelText;
+    if ([self.options objectForKey:@"croppingAspectRatio"] != nil) {
+        NSDictionary *croppingAspectRatio = [[self options] objectForKey:@"croppingAspectRatio"];
+        if ([croppingAspectRatio objectForKey:@"width"] != nil && [croppingAspectRatio objectForKey:@"height"] != nil) {
+            cropVC.customAspectRatio = CGSizeMake([[croppingAspectRatio objectForKey:@"width"] intValue], [[croppingAspectRatio objectForKey:@"height"] intValue]); 
+        }
+    }
+    cropVC.aspectRatioLockEnabled = true;
+    cropVC.aspectRatioPickerButtonHidden = true;
+    cropVC.resetAspectRatioEnabled = false;
 
     dispatch_async(dispatch_get_main_queue(), ^{
         [[self getRootVC] presentViewController:cropVC animated:FALSE completion:nil];

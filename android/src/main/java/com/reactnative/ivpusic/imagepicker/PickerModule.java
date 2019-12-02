@@ -8,13 +8,18 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
+import android.graphics.Paint;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
+import android.util.Log;
 import android.webkit.MimeTypeMap;
 
 import androidx.core.app.ActivityCompat;
@@ -39,6 +44,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -79,9 +85,11 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
     private boolean enableRotationGesture = false;
     private boolean disableCropperColorSetters = false;
     private boolean useFrontCamera = false;
+    private boolean convertGrayscale = false;
     private int videoDurationLimit = 0;
     private String compressVideoPreset = null;
     private ReadableMap options;
+    private ReadableMap croppingAspectRatio = null;
 
     //Grey 800
     private final String DEFAULT_TINT = "#424242";
@@ -141,6 +149,8 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         useFrontCamera = options.hasKey("useFrontCamera") && options.getBoolean("useFrontCamera");
         videoDurationLimit = options.hasKey("durationLimit") ? options.getInt("durationLimit") : 0;
         compressVideoPreset = options.hasKey("compressVideoPreset") ? options.getString("compressVideoPreset") : null;
+        convertGrayscale = options.hasKey("convertGrayscale") && options.getBoolean("convertGrayscale");
+        croppingAspectRatio = options.hasKey("croppingAspectRatio") ? options.getMap("croppingAspectRatio") : null;
         this.options = options;
     }
 
@@ -696,8 +706,19 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
                 .of(uri, Uri.fromFile(new File(this.getTmpDir(activity), UUID.randomUUID().toString() + ".jpg")))
                 .withOptions(options);
 
+        if (croppingAspectRatio != null) {
+            float x = croppingAspectRatio.hasKey("width") ? croppingAspectRatio.getInt("width") : 0;
+            float y = croppingAspectRatio.hasKey("height") ? croppingAspectRatio.getInt("height") : 0;
+            if (x > 0 && y > 0) {
+                uCrop.withAspectRatio(x, y);
+            }
+        }
+
         if (width > 0 && height > 0) {
-            uCrop.withAspectRatio(width, height);
+            uCrop.withMaxResultSize(width, height);
+            if (croppingAspectRatio == null) {
+                uCrop.withAspectRatio(width, height);
+            }
         }
 
         uCrop.start(activity);
@@ -733,6 +754,10 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
                     return;
                 }
 
+                if (convertGrayscale) {
+                    uri = convertToGrayscale(uri);
+                }
+
                 if (cropping) {
                     startCropping(activity, uri);
                 } else {
@@ -746,6 +771,42 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         }
     }
 
+    private Uri convertToGrayscale(Uri uri) {
+        try {
+            Bitmap bmpOriginal = MediaStore.Images.Media.getBitmap(this.reactContext.getContentResolver(), uri);
+
+            int height = bmpOriginal.getHeight();
+            int width = bmpOriginal.getWidth();
+
+            Bitmap bmpGrayscale = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
+            Canvas c = new Canvas(bmpGrayscale);
+            Paint paint = new Paint();
+            ColorMatrix cm = new ColorMatrix();
+            cm.setSaturation(0);
+            ColorMatrixColorFilter f = new ColorMatrixColorFilter(cm);
+            paint.setColorFilter(f);
+            c.drawBitmap(bmpOriginal, 0, 0, paint);
+//        return bmpGrayscale;
+            File tempDir= Environment.getExternalStorageDirectory();
+            tempDir=new File(tempDir.getAbsolutePath()+"/.temp/");
+            tempDir.mkdir();
+            File tempFile = File.createTempFile("grayscale", ".jpg", tempDir);
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            bmpGrayscale.compress(Bitmap.CompressFormat.JPEG, 100, bytes);
+            byte[] bitmapData = bytes.toByteArray();
+
+            //write the bytes in file
+            FileOutputStream fos = new FileOutputStream(tempFile);
+            fos.write(bitmapData);
+            fos.flush();
+            fos.close();
+            return Uri.fromFile(tempFile);
+        } catch (Exception e){
+            Log.e("error", "cannot convert to greyScale");
+            return null;
+        }
+    }
+
     private void cameraPickerResult(Activity activity, final int requestCode, final int resultCode, final Intent data) {
         if (resultCode == Activity.RESULT_CANCELED) {
             resultCollector.notifyProblem(E_PICKER_CANCELLED_KEY, E_PICKER_CANCELLED_MSG);
@@ -755,6 +816,10 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
             if (uri == null) {
                 resultCollector.notifyProblem(E_NO_IMAGE_DATA_FOUND, "Cannot resolve image url");
                 return;
+            }
+
+            if (convertGrayscale) {
+                uri = convertToGrayscale(uri);
             }
 
             if (cropping) {
