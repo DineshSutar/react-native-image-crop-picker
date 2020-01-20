@@ -10,8 +10,11 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorFilter;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
+import android.graphics.LightingColorFilter;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
@@ -679,6 +682,13 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
     }
 
     private void startCropping(final Activity activity, final Uri uri) {
+//        Uri imageUri = uri;
+//        Uri normailzedImage = normalizeImage(imageUri);
+//
+//        if(normailzedImage != null) {
+//            imageUri = normailzedImage;
+//        }
+
         UCrop.Options options = new UCrop.Options();
         options.setCompressionFormat(Bitmap.CompressFormat.JPEG);
         options.setCompressionQuality(100);
@@ -703,7 +713,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         }
 
         UCrop uCrop = UCrop
-                .of(uri, Uri.fromFile(new File(this.getTmpDir(activity), UUID.randomUUID().toString() + ".jpg")))
+                .of(normalizeImage(uri), Uri.fromFile(new File(this.getTmpDir(activity), UUID.randomUUID().toString() + ".jpg")))
                 .withOptions(options);
 
         if (croppingAspectRatio != null) {
@@ -804,6 +814,49 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         } catch (Exception e){
             Log.e("error", "cannot convert to greyScale");
             return null;
+        }
+    }
+
+    public static ColorMatrix createThresholdMatrix(int threshold) {
+        ColorMatrix matrix = new ColorMatrix(new float[] {
+                85.f, 85.f, 85.f, 0.f, -255.f * threshold,
+                85.f, 85.f, 85.f, 0.f, -255.f * threshold,
+                85.f, 85.f, 85.f, 0.f, -255.f * threshold,
+                0f, 0f, 0f, 1f, 0f
+        });
+        return matrix;
+    }
+
+    private Uri normalizeImage(Uri uri) {
+        try {
+            Bitmap bmpOriginal = MediaStore.Images.Media.getBitmap(this.reactContext.getContentResolver(), uri);
+
+            int height = bmpOriginal.getHeight();
+            int width = bmpOriginal.getWidth();
+
+            Bitmap bmpBW = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
+            Canvas c = new Canvas(bmpBW);
+            Paint bitmapPaint = new Paint();
+            bitmapPaint.setColorFilter(new ColorMatrixColorFilter(createThresholdMatrix(128)));
+            c.drawBitmap(bmpOriginal, 0, 0, bitmapPaint);
+
+            File tempDir= Environment.getExternalStorageDirectory();
+            tempDir=new File(tempDir.getAbsolutePath()+"/.temp/");
+            tempDir.mkdir();
+            File tempFile = File.createTempFile("normalized", ".jpg", tempDir);
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            bmpBW.compress(Bitmap.CompressFormat.JPEG, 100, bytes);
+            byte[] bitmapData = bytes.toByteArray();
+
+            //write the bytes in file
+            FileOutputStream fos = new FileOutputStream(tempFile);
+            fos.write(bitmapData);
+            fos.flush();
+            fos.close();
+            return Uri.fromFile(tempFile);
+        } catch (Exception e) {
+            Log.e("error", "unable to normalize Image");
+            return uri;
         }
     }
 
