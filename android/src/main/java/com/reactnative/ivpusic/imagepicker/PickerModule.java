@@ -89,6 +89,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
     private boolean disableCropperColorSetters = false;
     private boolean useFrontCamera = false;
     private boolean convertGrayscale = false;
+    private boolean convertBlackAndWhite = false;
     private int videoDurationLimit = 0;
     private String compressVideoPreset = null;
     private ReadableMap options;
@@ -153,6 +154,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         videoDurationLimit = options.hasKey("durationLimit") ? options.getInt("durationLimit") : 0;
         compressVideoPreset = options.hasKey("compressVideoPreset") ? options.getString("compressVideoPreset") : null;
         convertGrayscale = options.hasKey("convertGrayscale") && options.getBoolean("convertGrayscale");
+        convertBlackAndWhite = options.hasKey("convertBlackAndWhite") && options.getBoolean("convertBlackAndWhite");
         croppingAspectRatio = options.hasKey("croppingAspectRatio") ? options.getMap("croppingAspectRatio") : null;
         this.options = options;
     }
@@ -682,12 +684,11 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
     }
 
     private void startCropping(final Activity activity, final Uri uri) {
-//        Uri imageUri = uri;
-//        Uri normailzedImage = normalizeImage(imageUri);
-//
-//        if(normailzedImage != null) {
-//            imageUri = normailzedImage;
-//        }
+        Uri imageUri = uri;
+
+        if(convertBlackAndWhite) {
+            imageUri = normalizeImage(imageUri);
+        }
 
         UCrop.Options options = new UCrop.Options();
         options.setCompressionFormat(Bitmap.CompressFormat.JPEG);
@@ -713,7 +714,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         }
 
         UCrop uCrop = UCrop
-                .of(normalizeImage(uri), Uri.fromFile(new File(this.getTmpDir(activity), UUID.randomUUID().toString() + ".jpg")))
+                .of(imageUri , Uri.fromFile(new File(this.getTmpDir(activity), UUID.randomUUID().toString() + ".jpg")))
                 .withOptions(options);
 
         if (croppingAspectRatio != null) {
